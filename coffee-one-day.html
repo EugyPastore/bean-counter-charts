@@ -149,9 +149,14 @@ details.tbl th:first-child, details.tbl td:first-child { text-align: left; }
 .kpi:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
 .kpi.active { border-color: var(--primary); box-shadow: 0 0 0 1px var(--primary); }
 .kpi .top { display: flex; justify-content: space-between; align-items: center; gap: 6px; }
-.kpi .tag { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--primary); }
+.kpi .tag { font-size: 10px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--primary); white-space: nowrap; }
 .kpi .tag.hint { color: var(--muted-foreground); font-weight: 500; opacity: 0; transition: opacity .15s; }
 .kpi:hover .tag.hint { opacity: 1; }
+.kpi .l { min-width: 0; }
+/* an hour filter is a filter, not the chosen measure: filled background + a clear chip instead of the blue ring */
+.kpi.filtering { background: color-mix(in srgb, var(--primary) 7%, var(--background)); border-color: color-mix(in srgb, var(--primary) 35%, var(--border)); }
+.kpi .chip-x { white-space: nowrap; font-size: 11px; font-weight: 500; color: var(--primary); border: 1px solid color-mix(in srgb, var(--primary) 35%, var(--border)); border-radius: 999px; padding: 1px 8px; background: var(--background); }
+.kpi.filtering:hover .chip-x { background: var(--primary); color: var(--background); }
 .pills { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; }
 .pills .lab { font-size: 12px; color: var(--muted-foreground); }
 .pill { appearance: none; font: inherit; display: inline-flex; align-items: center; gap: 6px; height: 26px; padding: 0 9px; border-radius: 999px; border: 1px solid var(--border);
@@ -285,7 +290,7 @@ svg text.val.sel { font-weight: 600; }
 
   <section class="frame" aria-label="Drill down">
     <div class="frame-header"><h2 class="frame-title">Drill down</h2>
-      <span class="legend-seq" aria-hidden="true"><span id="legendLabel">Revenue</span>, low <i style="background:var(--seq-1)"></i><i style="background:var(--seq-2)"></i><i style="background:var(--seq-3)"></i><i style="background:var(--seq-4)"></i><i style="background:var(--seq-5)"></i> high <i style="background:var(--empty);border:1px solid var(--border);margin-left:8px"></i> closed / none</span>
+      <span class="legend-seq" aria-hidden="true"><span id="legendLabel">Revenue</span><span>· low</span><i style="background:var(--seq-1)"></i><i style="background:var(--seq-2)"></i><i style="background:var(--seq-3)"></i><i style="background:var(--seq-4)"></i><i style="background:var(--seq-5)"></i> high <i style="background:var(--empty);border:1px solid var(--border);margin-left:8px"></i> closed / none</span>
     </div>
     <div class="panel">
       <div class="label"><span>Year</span><span id="yearNote"></span></div>
@@ -707,7 +712,7 @@ svg text.val.sel { font-weight: 600; }
       const v = valOf(cur, 1, ms), t = typical(ms);
       const active = state.measure === ms;
       return `<button class="panel kpi${active ? ' active' : ''}" data-measure="${ms}" aria-pressed="${active}">
-        <div class="top"><span class="l">${MEASURE_NAME[ms]}</span>${active ? '<span class="tag">● colouring charts</span>' : '<span class="tag hint">Colour charts by this</span>'}</div>
+        <div class="top"><span class="l">${MEASURE_NAME[ms]}</span>${active ? '<span class="tag">● Colouring</span>' : '<span class="tag hint">Colour by this</span>'}</div>
         <div class="row"><span class="v">${fmt(v, false, ms)}</span>${badge(v, t)}</div>
         <div class="s">typical ${wd}: ${fmt(t, false, ms)}</div></button>`;
     });
@@ -719,13 +724,13 @@ svg text.val.sel { font-weight: 600; }
       let bi = 0; hourVals.forEach((s, i) => { if (valOf(s, 1, measure === 'avg' ? 'rev' : measure) > valOf(hourVals[bi], 1, measure === 'avg' ? 'rev' : measure)) bi = i; });
       const bs = hourVals[bi], share = dayAll.r ? bs.r / dayAll.r * 100 : 0;
       fourth = `<button class="panel kpi" data-hour="${OPEN + bi}">
-        <div class="top"><span class="l">Busiest hour</span><span class="tag hint">Pick this hour</span></div>
+        <div class="top"><span class="l">Busiest hour</span><span class="tag hint">Filter to this hour</span></div>
         <div class="row"><span class="v">${pad(OPEN + bi)}:00</span><span class="badge flat">${share.toFixed(0)}% of day</span></div>
         <div class="s">${money(bs.r)} · ${bs.n} sales</div></button>`;
     } else {
       const s = hourVals[state.hour - OPEN], share = dayAll.r ? s.r / dayAll.r * 100 : 0;
-      fourth = `<button class="panel kpi active" data-hour="${state.hour}">
-        <div class="top"><span class="l">Picked hour</span><span class="tag">● filtering · click to clear</span></div>
+      fourth = `<button class="panel kpi filtering" aria-pressed="true" aria-label="Picked hour ${pad(state.hour)}:00, click to clear" data-hour="${state.hour}">
+        <div class="top"><span class="l">Picked hour</span><span class="chip-x">Clear ×</span></div>
         <div class="row"><span class="v">${pad(state.hour)}:00</span><span class="badge flat">${share.toFixed(0)}% of day</span></div>
         <div class="s">${money(s.r)} · ${s.n} sales</div></button>`;
     }

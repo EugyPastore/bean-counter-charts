@@ -220,7 +220,9 @@ svg text.val.sel { font-weight: 600; }
 .who.pic { cursor: default; border-radius: 8px; padding: 2px 4px; transition: opacity .2s, transform .2s; outline: none; }
 .who.pic:hover, .who.pic:focus-visible { transform: translateY(-2px); }
 .who.pic:focus-visible { box-shadow: 0 0 0 2px var(--ring); }
-.who.pic.fade { opacity: .3; }
+.who.pic.fade { opacity: .25; }
+.who.pic { cursor: pointer; }
+.who.pic.pinned { color: var(--foreground); font-weight: 600; }
 .stage .arc { stroke-dasharray: 0 100; transition: stroke-dasharray 1s cubic-bezier(.3, .8, .3, 1) .5s; }
 .stage svg[data-stage="3"] .arc { stroke-dasharray: var(--p) 100; }
 .stage .avatar { transition: opacity .25s; }
@@ -868,7 +870,7 @@ svg text.val.sel { font-weight: 600; }
     const MB = 376, mugH = Math.max(80, Math.ceil(Math.max(...perHourN) / 2) * 12 + 22);
     const mugs = perHourN.map((_, i) => {
       const cx = X0 + (i + 0.5) * COLW, t = MB - mugH;
-      return `<path class="mug" d="M${cx - 18},${t} L${cx + 18},${t} L${cx + 15.5},${MB - 5} Q${cx + 15},${MB} ${cx + 10},${MB} L${cx - 10},${MB} Q${cx - 15},${MB} ${cx - 15.5},${MB - 5} Z"/>
+      return `<path class="mug" data-i="${i}" d="M${cx - 18},${t} L${cx + 18},${t} L${cx + 15.5},${MB - 5} Q${cx + 15},${MB} ${cx + 10},${MB} L${cx - 10},${MB} Q${cx - 15},${MB} ${cx - 15.5},${MB - 5} Z"/>
         <path class="mug-h" d="M${cx + 17},${t + 10} q9,0 8.5,12 q-0.5,11 -10,11"/>`;
     }).join('');
     const pcx = X0 + (peakH + 0.5) * COLW, pt = MB - mugH;
@@ -892,6 +894,9 @@ svg text.val.sel { font-weight: 600; }
     }).join('');
     const layersCat = layerSet(j => sales[j].cat, k => CATS[k].color, k => CATS[k].name);
     const layersWho = layerSet(j => st.who[j], k => BCOL[k], k => name(k));
+    // per-hour stats for the mug tooltips: totals, and split by category (a) and by barista (b)
+    const hourStats = perHourN.map(() => ({ n: 0, rev: 0, a: [0, 1, 2].map(() => ({ n: 0, rev: 0 })), b: [0, 1, 2].map(() => ({ n: 0, rev: 0 })) }));
+    sales.forEach((s, j) => { const H = hourStats[s.h - OPEN]; H.n++; H.rev += s.amt; H.a[s.cat].n++; H.a[s.cat].rev += s.amt; H.b[st.who[j]].n++; H.b[st.who[j]].rev += s.amt; });
     const mugOutline = mugs.replace(/class="mug"/g, 'class="mug mug-line"');
     const lanes = [0, 1, 2].map(w => {
       const s = st.shifts[w], xa = X0 + (s.from - OPEN) * COLW, xb = X0 + (s.to - OPEN) * COLW;
@@ -917,6 +922,7 @@ svg text.val.sel { font-weight: 600; }
       <g class="L L2">${lanes}</g><g class="L L3">${avatars}<line x1="${X0}" x2="${X1}" y1="${BASE}" y2="${BASE}" stroke="var(--border)" stroke-width="1.5"/></g>
       <g>${idx.map(i => `<g class="dot" data-w="${st.who[i]}" style="transition-delay:${(i % 40) * 8}ms"><path d="${MUG}"/></g>`).join('')}</g>`;
     const dots = [...svg.querySelectorAll('.dot')];
+    svg._story = { hourStats, labels: { a: CATS.map(c => c.name), b: [0, 1, 2].map(name) }, colors: { a: CATS.map(c => c.color), b: BCOL } };
     svg._apply = stage => {
       storyStage = stage;
       svg.dataset.stage = stage;
@@ -940,6 +946,7 @@ svg text.val.sel { font-weight: 600; }
       `<p><b>Meet the crew.</b> Taller means more hours. The crown goes to <b>${name(topI)}</b>, ${st.served[topI]} customers served.</p>`,
     ];
     document.querySelectorAll('#steps .card').forEach((c, i) => c.innerHTML = steps[i]);
+    resetSpot(); // captions were rebuilt for a new day: drop any locked legend selection
   }
   // scrolling over the chart moves through the steps: one full-height page per step
   const stepsBox = document.getElementById('steps'), dotsBox = document.getElementById('storyDots');
@@ -959,23 +966,71 @@ svg text.val.sel { font-weight: 600; }
   stepsBox.addEventListener('scroll', syncStep, { passive: true });
   syncStep();
 
-  // hovering (or focusing) a legend icon spotlights that category / barista: other icons and other layers fade,
-  // and the hour labels of the mugs they appear in turn bold
-  function spotlight(item) {
+  // legend icons spotlight a category (set a) or barista (set b): other icons and layers fade and the hours they
+  // appear in turn bold. Hover previews; click locks it (click again to release). The mug tooltips follow the spotlight.
+  let pinned = null;   // { set, k } locked by a click
+  let spot = null;     // what is spotlighted right now (hover preview or pinned)
+  function spotlight(sel) {
+    spot = sel;
     const svg = document.getElementById('storySvg');
-    const set = item && item.dataset.set, k = item && item.dataset.k;
-    stepsBox.querySelectorAll('.who.pic').forEach(el => el.classList.toggle('fade', !!item && el !== item && el.dataset.set === set));
-    const group = set === 'a' ? '.La' : '.Lb';
-    svg.querySelectorAll('.lyr').forEach(r => r.classList.toggle('fade', !!item && r.closest(group) && r.dataset.k !== k));
-    const hot = new Set(item ? [...svg.querySelectorAll(`${group} .lyr[data-k="${k}"]`)].map(r => r.dataset.i) : []);
+    stepsBox.querySelectorAll('.who.pic').forEach(el => {
+      const same = !!sel && el.dataset.set === sel.set;
+      el.classList.toggle('fade', same && el.dataset.k !== sel.k);
+      const isPinned = !!pinned && el.dataset.set === pinned.set && el.dataset.k === pinned.k;
+      el.classList.toggle('pinned', isPinned);
+      el.setAttribute('aria-pressed', isPinned);
+    });
+    const group = sel && sel.set === 'a' ? '.La' : '.Lb';
+    svg.querySelectorAll('.lyr').forEach(r => r.classList.toggle('fade', !!sel && !!r.closest(group) && r.dataset.k !== sel.k));
+    const hot = new Set(sel ? [...svg.querySelectorAll(`${group} .lyr[data-k="${sel.k}"]`)].map(r => r.dataset.i) : []);
     svg.querySelectorAll('text.hr').forEach(t => t.classList.toggle('hot', hot.has(t.dataset.i)));
-    svg.classList.toggle('spot', !!item);
   }
-  stepsBox.addEventListener('pointerover', e => { const it = e.target.closest('.who.pic'); if (it) spotlight(it); });
-  stepsBox.addEventListener('pointerout', e => { const it = e.target.closest('.who.pic'); if (it && !it.contains(e.relatedTarget)) spotlight(null); });
-  stepsBox.addEventListener('focusin', e => { const it = e.target.closest('.who.pic'); if (it) spotlight(it); });
-  stepsBox.addEventListener('focusout', () => spotlight(null));
-  stepsBox.addEventListener('scroll', () => spotlight(null), { passive: true });
+  function resetSpot() { pinned = null; spotlight(null); }
+  const selOf = el => ({ set: el.dataset.set, k: el.dataset.k });
+  stepsBox.addEventListener('pointerover', e => { const it = e.target.closest('.who.pic'); if (it) spotlight(selOf(it)); });
+  stepsBox.addEventListener('pointerout', e => { const it = e.target.closest('.who.pic'); if (it && !it.contains(e.relatedTarget)) spotlight(pinned); });
+  stepsBox.addEventListener('click', e => {
+    const it = e.target.closest('.who.pic'); if (!it) return;
+    const s = selOf(it);
+    pinned = pinned && pinned.set === s.set && pinned.k === s.k ? null : s;
+    spotlight(pinned || s);
+  });
+  stepsBox.addEventListener('keydown', e => {
+    const it = e.target.closest('.who.pic');
+    if (it && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); it.click(); }
+  });
+  stepsBox.addEventListener('focusin', e => { const it = e.target.closest('.who.pic'); if (it) spotlight(selOf(it)); });
+  stepsBox.addEventListener('focusout', () => spotlight(pinned));
+  let spotStep = 0;
+  stepsBox.addEventListener('scroll', () => { if (lastStep !== spotStep) { spotStep = lastStep; resetSpot(); } }, { passive: true });
+
+  // steps 1–2: hovering a mug shows that hour's numbers; with a spotlight on, the selected category / barista leads
+  const mugAt = e => lastStep <= 1 && document.elementsFromPoint(e.clientX, e.clientY).map(el => el.closest && el.closest('#storySvg [data-i]')).find(Boolean);
+  stepsBox.addEventListener('pointermove', e => {
+    if (e.target.closest('.card')) { hideTip(); return; }
+    const m = mugAt(e), story = document.getElementById('storySvg')._story;
+    if (!m || !story) { hideTip(); return; }
+    const i = +m.dataset.i, H = story.hourStats[i], set = lastStep === 0 ? 'a' : 'b';
+    const head = `<b>${pad(OPEN + i)}:00–${pad(OPEN + i + 1)}:00</b> · ${H.n} sales · ${money(H.rev)}`;
+    const row = (k, strong) => {
+      const v = H[set][k], share = H.n ? Math.round(v.n / H.n * 100) : 0;
+      return `<span style="color:${story.colors[set][k]}">■</span> ${strong ? '<b>' : ''}${story.labels[set][k]}: ${v.n} ${set === 'a' ? 'sales' : 'served'} · ${money(v.rev)}${strong ? '</b>' : ` · ${share}%`}`;
+    };
+    const focus = spot && spot.set === set ? +spot.k : null;
+    const body = focus != null
+      ? row(focus, true) + `<br><span style="opacity:.7">${H[set][focus].n ? `${Math.round(H[set][focus].n / H.n * 100)}% of this hour's ${set === 'a' ? 'sales' : 'customers'}` : `No ${set === 'a' ? story.labels.a[focus].toLowerCase() + ' sales' : 'sales by ' + story.labels.b[focus]} this hour`}</span>`
+      : [0, 1, 2].filter(k => H[set][k].n).map(k => row(k, false)).join('<br>');
+    showTip(`${head}<br>${body}`, e);
+  });
+  stepsBox.addEventListener('pointerleave', hideTip);
+
+  // clicking any blank space clears the story's locked legend and crew selection
+  // (clicks on a legend icon, a mug or a crew figure are not blank and keep their own behaviour)
+  document.addEventListener('click', e => {
+    if (e.target.closest('.who.pic') || mugAt(e) || avatarAt(e)) return;
+    if (pinned) resetSpot();
+    if (document.querySelector('#storySvg .avatar.sel')) selectAvatar(null);
+  });
 
   // last step: click a crew figure (portrait or body) to show their share of the day's customers.
   // The scroll layer sits on top of the chart, so find the figure underneath the pointer.

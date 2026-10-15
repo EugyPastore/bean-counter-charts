@@ -291,6 +291,17 @@ svg text.val.sel { font-weight: 600; }
 .daychart .crew-end { cursor: default; outline: none; }
 .daychart .crew-end:focus-visible text.ce-n { text-decoration: underline; }
 .linked .flow.hov-dim, .linked .flow.dim { opacity: .05; }
+.daychart .note { cursor: pointer; outline: none; }
+.daychart .note:focus-visible circle { stroke: var(--foreground); stroke-width: 2; }
+.daychart.pinned .note:not(.pin), .daychart.pinned .flow:not(.pin), .daychart.pinned .ribbon { opacity: .1; }
+.daychart .note.pin circle { r: 6; stroke: var(--background); stroke-width: 2; }
+.daychart .note.pin .stem { stroke-width: 2.4; }
+.daychart .flow.pin { opacity: 1; stroke-width: 2.4; }
+.sale-pin { display: flex; align-items: center; flex-wrap: wrap; gap: 6px; margin-top: 8px; padding: 8px 12px; border: 1px solid var(--border); border-radius: 999px; font-size: 13px; width: fit-content; max-width: 100%; background: var(--background); box-shadow: var(--shadow); }
+.sale-pin svg { display: inline-block; vertical-align: middle; }
+.sale-pin .sp-dot { width: 10px; height: 10px; border-radius: 50%; display: inline-block; }
+.sale-pin .sp-x { appearance: none; border: 0; background: var(--muted); color: var(--muted-foreground); width: 22px; height: 22px; border-radius: 50%; cursor: pointer; font-size: 15px; line-height: 1; margin-left: 4px; }
+.sale-pin .sp-x:hover { color: var(--foreground); }
 .chart-key { margin: 8px 0 0; font-size: 12px; color: var(--muted-foreground); max-width: 80ch; }
 .chart-key b { color: var(--foreground); font-weight: 600; }
 #hourly .rv-mark { cursor: pointer; outline: none; }
@@ -366,7 +377,8 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
     <div class="panel">
       <div class="cat-legend" id="catLegend" role="group" aria-label="Filter by category"></div>
       <div id="hourly" class="linked"></div>
-      <p class="chart-key">Each <b>note</b> is one sale, placed at the minute it happened; a taller stem is a bigger ticket. Every stem flows into the stream of the barista who served it.</p>
+      <div class="sale-pin" id="salePin" hidden></div>
+      <p class="chart-key">Each <b>note</b> is one sale, placed at the minute it happened; a taller stem is a bigger ticket. Every stem flows into the stream of the barista who served it. Click a note to pin it.</p>
       <details class="tbl"><summary>Show as table</summary><div class="scroll" id="hourTable"></div></details>
     </div>
   </section>
@@ -729,7 +741,7 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
       mine.forEach((p, k) => {
         const bx = faceX[w] + (k - (n - 1) / 2) * sp;
         const f = el('path', { d: `M${p.x},${yBase} C${p.x},${yBase + 58} ${bx},${yBundle - 52} ${bx},${yBundle}`, class: 'flow',
-          style: `stroke:${BCOL[w]}`, 'data-w': w, 'data-h': p.s.h, 'data-c': p.s.cat });
+          style: `stroke:${BCOL[w]}`, 'data-w': w, 'data-h': p.s.h, 'data-c': p.s.cat, 'data-i': p.i });
         if (dimSale(p.s)) f.classList.add('dim');
         flows.appendChild(f);
       });
@@ -741,12 +753,15 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
       }
     });
     placed.forEach(p => {
-      const g = el('g', { class: 'note', 'data-h': p.s.h, 'data-c': p.s.cat, 'data-w': p.w });
+      const g = el('g', { class: 'note', 'data-h': p.s.h, 'data-c': p.s.cat, 'data-w': p.w, 'data-i': p.i, tabindex: 0, role: 'button',
+        'aria-label': `${pad(p.s.h)}:${pad(p.s.m)}, ${CATS[p.s.cat].name}, €${p.s.amt.toFixed(2)}, served by ${STAFF[st.crew[p.w]]}` });
       if (dimSale(p.s)) g.classList.add('dim');
       g.appendChild(el('line', { x1: p.x, x2: p.x, y1: yBase, y2: p.top, style: `stroke:${CATS[p.s.cat].color}`, class: 'stem' }));
       g.appendChild(el('circle', { cx: p.x, cy: p.top, r: 3.4, style: `fill:${CATS[p.s.cat].color}` }));
       g.appendChild(el('line', { x1: p.x, x2: p.x, y1: yBase, y2: p.top - 5, class: 'note-hit' }));
       hover(g, () => `<b>${pad(p.s.h)}:${pad(p.s.m)}</b> · <span style="color:${CATS[p.s.cat].color}">■</span> ${CATS[p.s.cat].name} · €${p.s.amt.toFixed(2)}<br>served by ${STAFF[st.crew[p.w]]}`);
+      g.addEventListener('click', e => { e.stopPropagation(); pinSale(svg, p.i === pinnedSale ? null : p, st); });
+      g.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); g.dispatchEvent(new MouseEvent('click')); } });
       notes.appendChild(g);
     });
     svg.appendChild(el('line', { x1: L, x2: W - L, y1: yBase, y2: yBase, class: 'base' }));
@@ -769,6 +784,7 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
       hover(rb, () => `<b>${STAFF[st.crew[w]]}</b><br>${st.served[w]} customers served`, () => highlight('w', w), () => highlight('w', null));
     });
     box.appendChild(svg);
+    pinnedSale = null; $('salePin').hidden = true;
     renderReviews(date, reviews);
 
     $('hourTable').innerHTML = `<table><thead><tr><th>Hour</th>${CATS.map(c => `<th>${c.name} €</th>`).join('')}<th>Total €</th><th>Sales</th><th>Avg ticket</th></tr></thead><tbody>` +
@@ -1235,6 +1251,24 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
   stepsBox.addEventListener('click', e => { if (e.target.closest('.card')) return; if (lastStep === 3) selectAvatar(avatarAt(e) || null); });
   stepsBox.addEventListener('pointermove', e => stepsBox.parentElement.classList.toggle('over-avatar', !!avatarAt(e)));
   stepsBox.addEventListener('scroll', () => { if (lastStep !== 3) selectAvatar(null); }, { passive: true });
+
+  // clicking a note pins that sale: it and its flow stay lit, everything else fades; a line under the chart spells it out
+  let pinnedSale = null;
+  function pinSale(svg, p, st) {
+    pinnedSale = p ? p.i : null;
+    svg.classList.toggle('pinned', !!p);
+    svg.querySelectorAll('.note, .flow').forEach(e => e.classList.toggle('pin', !!p && +e.dataset.i === p.i));
+    const box = $('salePin');
+    box.hidden = !p;
+    if (p) box.innerHTML = `<span class="sp-dot" style="background:${CATS[p.s.cat].color}"></span><b>${pad(p.s.h)}:${pad(p.s.m)}</b> · ${CATS[p.s.cat].name} · <b>€${p.s.amt.toFixed(2)}</b> · served by ${faceIcon(st.crew[p.w], BCOL[p.w], 18)}<b>${STAFF[st.crew[p.w]]}</b><button type="button" class="sp-x" aria-label="Unpin sale">×</button>`;
+    if (p) box.querySelector('.sp-x').onclick = e => { e.stopPropagation(); pinSale(svg, null, st); };
+  }
+  // a click anywhere outside the notes unpins
+  document.addEventListener('click', e => {
+    if (pinnedSale == null || e.target.closest('.daychart .note, #salePin')) return;
+    const svg = document.querySelector('.daychart'); if (svg) { svg.classList.remove('pinned'); svg.querySelectorAll('.pin').forEach(x => x.classList.remove('pin')); }
+    pinnedSale = null; $('salePin').hidden = true;
+  });
 
   function render() { hideTip(); renderCrumbs(); renderPills(); renderDrill(aggregate()); renderDay(); renderStory(); }
   render();

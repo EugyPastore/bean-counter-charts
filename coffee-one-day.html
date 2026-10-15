@@ -1,4 +1,5 @@
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Café Sales Dashboard</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -117,6 +118,8 @@ body { background: var(--page); color: var(--foreground); font-family: var(--fon
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .cal .dow { font-size: 11px; color: var(--muted-foreground); text-align: center; padding-bottom: 2px; }
 .day-cell { aspect-ratio: 1 / .8; max-width: 100%; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between; }
+.day-cell { position: relative; }
+.day-cell .rv { position: absolute; top: 3px; right: 3px; width: 11px; height: 11px; }
 .day-cell .dn { font-weight: 600; font-size: 12px; }
 .day-cell .dv { font-family: var(--font-mono); font-size: 10px; }
 .day-cell.closed .dv { font-family: var(--font-sans); }
@@ -251,6 +254,32 @@ svg text.val.sel { font-weight: 600; }
 .scroll-hint { position: absolute; left: 50%; bottom: 10px; transform: translateX(-50%); z-index: 3; font-size: 12px; color: var(--muted-foreground); pointer-events: none; transition: opacity .3s; }
 .scrolly.at-end .scroll-hint { opacity: 0; }
 
+/* guest reviews */
+.rev-head { display: flex; justify-content: space-between; align-items: center; gap: 12px 24px; flex-wrap: wrap; margin-bottom: 14px; }
+.rev-day { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.rev-avg { font-size: 28px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.rev-stars { display: inline-flex; gap: 2px; }
+.rev-stars svg { display: block; }
+.rev-count { font-size: 13px; color: var(--muted-foreground); }
+.rev-month { font-size: 13px; color: var(--muted-foreground); }
+.rev-month b { color: var(--foreground); font-weight: 600; }
+.rev-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.rev-list:empty { display: none; }
+.rev-card { border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; transition: box-shadow .3s; }
+.rev-card.low { border-color: var(--bad-bd); background: color-mix(in srgb, var(--bad-bg) 55%, var(--background)); }
+.rev-card.flash { box-shadow: 0 0 0 3px color-mix(in srgb, var(--primary) 35%, transparent); }
+.rev-card p { margin: 0; font-size: 14px; line-height: 1.45; text-wrap: pretty; }
+.rev-top, .rev-meta { display: flex; justify-content: space-between; align-items: center; gap: 8px; flex-wrap: wrap; }
+.rev-time { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); background: var(--muted); border-radius: 999px; padding: 1px 8px; }
+.rev-meta { font-size: 12px; color: var(--muted-foreground); }
+.rev-who { display: inline-flex; align-items: center; gap: 5px; color: var(--foreground); font-weight: 500; }
+.rev-who svg { display: block; }
+#hourly .rv-mark { cursor: pointer; outline: none; }
+#hourly .rv-mark:focus-visible path { stroke: var(--ring); stroke-width: 2; }
+svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700; fill: var(--foreground); }
+.stage text.rv-t { font-size: 12px; }
+@media (max-width: 960px) { .rev-list { grid-template-columns: minmax(0, 1fr); } }
+
 @media (max-width: 960px) {
   .scrolly { height: 72vh; }
   .step p { font-size: 14px; }
@@ -318,6 +347,14 @@ svg text.val.sel { font-weight: 600; }
   <section class="frame">
     <div class="frame-header"><h2 class="frame-title">The day, receipt by receipt</h2><span class="frame-desc">each tick is one sale · rows are hours, across is minutes · taller = bigger ticket · click a row to pick that hour</span></div>
     <div class="mgrid linked" id="mgrid"></div>
+  </section>
+
+  <section class="frame" aria-label="What guests said">
+    <div class="frame-header"><h2 class="frame-title">What guests said</h2><span class="frame-desc" id="revNote"></span></div>
+    <div class="panel">
+      <div class="rev-head" id="revHead"></div>
+      <div class="rev-list" id="revList"></div>
+    </div>
   </section>
 
   <section class="frame" aria-label="Behind the counter">
@@ -549,12 +586,15 @@ svg text.val.sel { font-weight: 600; }
       const b = document.createElement('button');
       const v = s ? valOf(s) : 0;
       b.className = `cell day-cell s${r && !r.closed ? dB(v) : 0}` + (r && r.closed ? ' closed' : '') + (dd === state.d ? ' sel' : '');
-      b.innerHTML = `<span class="dn">${dd}</span><span class="dv">${!r ? '' : r.closed ? 'Closed' : v ? fmt(v, true) : '–'}</span>`;
+      const rv = reviewIndex.get(k), rvAvg = rv && rv.count ? rv.sum / rv.count : 0;
+      const rvMark = rvAvg ? `<svg class="rv" viewBox="0 0 24 24" aria-hidden="true"><path d="${starPath}" style="fill:${ratingTone(rvAvg)};stroke:var(--background);stroke-width:2"/></svg>` : '';
+      const rvLine = rvAvg ? `<br>★ ${rvAvg.toFixed(1)} · ${rv.count} review${rv.count > 1 ? 's' : ''}` : '';
+      b.innerHTML = `${rvMark}<span class="dn">${dd}</span><span class="dv">${!r ? '' : r.closed ? 'Closed' : v ? fmt(v, true) : '–'}</span>`;
       if (!r || r.closed) { b.disabled = true; if (r) hover(b, () => `<b>${DOW[r.date.getDay()]} ${dd} ${MONTHS[state.m]}</b><br>Closed`); }
       else {
-        b.setAttribute('aria-label', `${dd} ${MONTHS_LONG[state.m]}, ${fmt(v)}`);
+        b.setAttribute('aria-label', `${dd} ${MONTHS_LONG[state.m]}, ${fmt(v)}${rvAvg ? `, rated ${rvAvg.toFixed(1)} from ${rv.count} review${rv.count > 1 ? 's' : ''}` : ''}`);
         b.onclick = () => { state.d = dd; render(); };
-        hover(b, () => `<b>${DOW[r.date.getDay()]} ${dd} ${MONTHS[state.m]}</b>${filterText() ? ' · ' + filterText() : ''}<br>${allTip(s)}`);
+        hover(b, () => `<b>${DOW[r.date.getDay()]} ${dd} ${MONTHS[state.m]}</b>${filterText() ? ' · ' + filterText() : ''}<br>${allTip(s)}${rvLine}`);
       }
       box.appendChild(b);
     }
@@ -600,7 +640,8 @@ svg text.val.sel { font-weight: 600; }
       hours.push({ h: OPEN + h, parts, total: parts.reduce((a, b) => a + b, 0), R, N });
     }
     const box = $('hourly'); box.innerHTML = '';
-    const W = Math.max(280, box.clientWidth || 600), H = 250, m = { t: 22, r: 4, b: 22, l: 44 };
+    const reviews = genReviews(date);
+    const W = Math.max(280, box.clientWidth || 600), H = 272, m = { t: 22, r: 4, b: 44, l: 44 };
     const iw = W - m.l - m.r, ih = H - m.t - m.b;
     const maxV = Math.max(...hours.map(x => x.total), measure === 'avg' ? 1 : 1);
     const nice = [1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
@@ -639,7 +680,7 @@ svg text.val.sel { font-weight: 600; }
         const t = el('text', { x: x + barW / 2, y: yS(hr.total) - 6, 'text-anchor': 'middle', class: 'val' + (hr.h === state.hour ? ' sel' : '') });
         t.textContent = fmt(hr.total, true); g.appendChild(t);
       }
-      const lab = el('text', { x: m.l + i * bw + bw / 2, y: H - 6, 'text-anchor': 'middle' }); lab.textContent = pad(hr.h); g.appendChild(lab);
+      const lab = el('text', { x: m.l + i * bw + bw / 2, y: H - 28, 'text-anchor': 'middle' }); lab.textContent = pad(hr.h); g.appendChild(lab);
       svg.appendChild(g);
       const hit = el('rect', { x: m.l + i * bw, y: m.t - 18, width: bw, height: ih + 18, fill: 'transparent', class: 'bar-hit' });
       hit.addEventListener('click', () => { state.hour = state.hour === hr.h ? null : hr.h; render(); });
@@ -649,7 +690,24 @@ svg text.val.sel { font-weight: 600; }
         () => highlight('h', hr.h), () => highlight('h', null));
       svg.appendChild(hit);
     });
+    // guest reviews: one speech bubble under each hour that got a review (hover = the words, click = jump to it)
+    const byHour = {};
+    reviews.forEach((v, i) => (byHour[v.h] = byHour[v.h] || []).push(i));
+    Object.entries(byHour).forEach(([h, ids]) => {
+      const list = ids.map(i => reviews[i]), avg = list.reduce((a, v) => a + v.rating, 0) / list.length;
+      const cx = m.l + (h - OPEN) * bw + bw / 2, cy = H - 11;
+      const b = el('g', { class: 'rv-mark', tabindex: 0, role: 'button', 'aria-label': `${list.length} review${list.length > 1 ? 's' : ''} at ${pad(+h)}:00` });
+      b.appendChild(el('path', { d: `M${cx - 13},${cy - 8} h26 a3 3 0 0 1 3 3 v10 a3 3 0 0 1 -3 3 h-9 l-4 4 l-4 -4 h-9 a3 3 0 0 1 -3 -3 v-10 a3 3 0 0 1 3 -3 z`, style: `fill:color-mix(in srgb, ${ratingTone(avg)} 22%, var(--background));stroke:${ratingTone(avg)};stroke-width:1.5` }));
+      const t = el('text', { x: cx, y: cy + 4, 'text-anchor': 'middle', class: 'rv-t' });
+      t.textContent = list.length > 1 ? `★${list.length}` : `★${list[0].rating}`; b.appendChild(t);
+      hover(b, () => list.map(v => `${stars(v.rating, 11)}<br>“${v.text}”<br><span style="opacity:.7">${v.reviewer} · ${v.source} · ${pad(v.h)}:${pad(v.m)}</span>`).join('<hr style="border:0;border-top:1px solid currentColor;opacity:.2;margin:6px 0">'));
+      const go = () => { const c = document.getElementById(`rev-${ids[0]}`); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'center' }); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 1200); } };
+      b.addEventListener('click', go);
+      b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
+      svg.appendChild(b);
+    });
     box.appendChild(svg);
+    renderReviews(date, reviews);
 
     $('hourTable').innerHTML = `<table><thead><tr><th>Hour</th>${CATS.map(c => `<th>${c.name} €</th>`).join('')}<th>Total €</th><th>Sales</th><th>Avg ticket</th></tr></thead><tbody>` +
       Array.from({ length: NH }, (_, h) => {
@@ -765,6 +823,97 @@ svg text.val.sel { font-weight: 600; }
       served[pick]++; who.push(pick);
     });
     return { crew, shifts, served, who, hours: shifts.map(s => s.to - s.from) };
+  }
+
+  // ---------- guest reviews (sample data, deterministic per day) ----------
+  // 0–3 reviews a day, more on busy days; mostly positive. A busy hour covered by one barista
+  // draws "waited too long" complaints. Named staff were always on shift at that hour.
+  const REVIEWERS = ['Anna', 'Luca', 'Sofia', 'James', 'Elif', 'Marco', 'Chloé', 'Daniel', 'Priya', 'Tomás', 'Hana', 'Oliver', 'Noor', 'Ben'];
+  const REVIEW_TEXT = {
+    order:   ['{name} remembered my usual order after one visit. Felt like home.', 'Remembered my order and my name. That never happens.'],
+    coffee:  ['Best flat white in the area, and {name} clearly takes pride in it.', 'Proper coffee, made with care. Will be back.'],
+    pastry:  ['Warm croissant, great cappuccino, friendly service from {name}.', 'The pastries are fresh and the coffee is spot on.'],
+    home:    ['{name} made us feel so welcome. Lovely little café.', 'Cosy, calm and the team is genuinely kind.'],
+    busy:    ['Busy, but {name} kept the queue moving with a smile.', 'Good coffee, a bit hectic at this time of day.'],
+    ok:      ['Decent coffee, nothing special this time.', 'Fine, but my latte was lukewarm.'],
+    wait:    ['Waited almost 15 minutes for one coffee. {name} was alone behind the counter.', 'Long queue and only one person serving.'],
+    cold:    ['My toastie came out cold and nobody checked on us.', 'Food was cold, coffee was fine.'],
+    soldout: ['Sold out of pastries by mid-morning, again.', 'Came for the cinnamon buns, all gone.'],
+  };
+  function genReviews(d) {
+    const sales = genDay(d, true);
+    if (!sales) return [];
+    const st = staffDay(d, sales), r = rng(key(d) * 31 + 7);
+    const perHour = Array(NH).fill(0); sales.forEach(s => perHour[s.h - OPEN]++);
+    const busy = perHour.map((n, i) => [n, i]).sort((a, b) => b[0] - a[0]).slice(0, 2).map(x => x[1]);
+    const lift = (sales.length - 80) / 200; // busier days are reviewed a little more often
+    const x = r(), count = x < 0.32 - lift ? 0 : x < 0.72 - lift ? 1 : x < 0.93 - lift / 2 ? 2 : 3;
+    const out = [];
+    for (let k = 0; k < count; k++) {
+      // pick the hour weighted by how many sales it had
+      let t = r() * sales.length, hi = 0;
+      while (hi < NH - 1 && t >= perHour[hi]) { t -= perHour[hi]; hi++; }
+      const h = OPEN + hi;
+      const on = [0, 1, 2].filter(i => h >= st.shifts[i].from && h < st.shifts[i].to);
+      let rating, theme;
+      if (busy.includes(hi) && on.length === 1 && r() < 0.5) { rating = r() < 0.5 ? 2 : 3; theme = 'wait'; }
+      else {
+        const u = r();
+        rating = u < 0.55 ? 5 : u < 0.80 ? 4 : u < 0.90 ? 3 : u < 0.96 ? 2 : 1;
+        const pool = rating >= 4 ? ['order', 'coffee', 'pastry', 'home', ...(perHour[hi] >= 12 ? ['busy'] : [])]
+          : rating === 3 ? ['ok', 'busy'] : ['wait', 'cold', 'soldout'];
+        theme = pool[Math.floor(r() * pool.length)];
+      }
+      const who = on.length && r() < 0.6 ? on[Math.floor(r() * on.length)] : null;
+      const bank = REVIEW_TEXT[theme];
+      // a named template needs a name: fall back to the first person on shift
+      // "…was alone behind the counter" only when exactly one barista was on shift that hour
+      let text = bank[who != null && !(theme === 'wait' && on.length !== 1) ? 0 : 1];
+      const named = text.includes('{name}') ? (who != null ? who : on[0]) : null;
+      if (named != null) text = text.replace('{name}', STAFF[st.crew[named]]);
+      out.push({ h, m: Math.floor(r() * 60), rating, text, who: named, staff: named != null ? st.crew[named] : null,
+        reviewer: `${REVIEWERS[Math.floor(r() * REVIEWERS.length)]} ${String.fromCharCode(65 + Math.floor(r() * 26))}.`,
+        source: r() < 0.6 ? 'Google' : 'TripAdvisor' });
+    }
+    return out.sort((a, b) => a.h - b.h || a.m - b.m);
+  }
+  // per-day review summary for the calendar and the month line (count, rating sum, praise per staff member)
+  const reviewIndex = new Map();
+  days.forEach((rec, k) => {
+    if (rec.closed) return;
+    const list = genReviews(rec.date);
+    const praised = [0, 0, 0, 0, 0], fives = list.filter(v => v.rating === 5).length;
+    list.forEach(v => { if (v.staff != null && v.rating >= 4) praised[v.staff]++; });
+    reviewIndex.set(k, { count: list.length, sum: list.reduce((a, v) => a + v.rating, 0), fives, praised });
+  });
+  const starPath = 'M12 2.5l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.4 6.1 20.5l1.2-6.5L2.5 9.4l6.6-.9z';
+  const stars = (rating, size = 14) => Array.from({ length: 5 }, (_, i) =>
+    `<svg viewBox="0 0 24 24" width="${size}" height="${size}" aria-hidden="true"><path d="${starPath}" style="fill:${i < rating ? 'var(--crown)' : 'var(--border)'}"/></svg>`).join('');
+  const ratingTone = avg => avg >= 4.5 ? 'var(--crown)' : avg <= 2.9 ? 'var(--bad-fg)' : 'var(--muted-foreground)';
+
+  // "What guests said": the day's review cards + a month line (average, five-star share, most praised colleague)
+  function renderReviews(date, reviews) {
+    const avg = reviews.length ? reviews.reduce((a, v) => a + v.rating, 0) / reviews.length : 0;
+    let mc = 0, ms = 0, m5 = 0; const praised = [0, 0, 0, 0, 0];
+    reviewIndex.forEach((v, k) => {
+      if (Math.floor(k / 100) !== state.y * 100 + state.m + 1) return;
+      mc += v.count; ms += v.sum; m5 += v.fives; v.praised.forEach((p, i) => praised[i] += p);
+    });
+    const top = praised.indexOf(Math.max(...praised));
+    $('revNote').textContent = `guest reviews · ${DOW_LONG[date.getDay()]}, ${MONTHS[state.m]} ${state.d}`;
+    $('revHead').innerHTML = `
+      <div class="rev-day">${reviews.length
+        ? `<span class="rev-avg">${avg.toFixed(1)}</span><span class="rev-stars">${stars(Math.round(avg), 18)}</span><span class="rev-count">${reviews.length} review${reviews.length > 1 ? 's' : ''} this day</span>`
+        : `<span class="rev-count">No reviews this day.</span>`}</div>
+      ${mc ? `<div class="rev-month">${MONTHS_LONG[state.m]}: <b>★ ${(ms / mc).toFixed(1)}</b> from ${mc} reviews · ${Math.round(m5 / mc * 100)}% five-star${praised[top] ? ` · most praised: <b>${STAFF[top]}</b>, ${praised[top]} mention${praised[top] > 1 ? 's' : ''}` : ''}</div>` : ''}`;
+    // a mentioned barista wears their colour from the story (crew position on this day)
+    $('revList').innerHTML = reviews.map((v, i) => `
+      <article class="rev-card${v.rating <= 2 ? ' low' : ''}" id="rev-${i}">
+        <div class="rev-top"><span class="rev-stars">${stars(v.rating)}</span><span class="rev-time">${pad(v.h)}:${pad(v.m)}</span></div>
+        <p>“${v.text}”</p>
+        <div class="rev-meta"><span>${v.reviewer} · ${v.source}</span>${v.who != null
+          ? `<span class="rev-who">${faceIcon(v.staff, BCOL[v.who], 22)}${STAFF[v.staff]}</span>` : ''}</div>
+      </article>`).join('');
   }
 
   // ---------- scroll story: the day's sales rearrange into the crew that served them ----------
@@ -915,8 +1064,13 @@ svg text.val.sel { font-weight: 600; }
     const crewGrid = `<text x="${X0 - 6}" y="${BASE - maxH * UNIT - 22}" class="axis-t">hours on shift</text>` +
       Array.from({ length: maxH }, (_, t) => { const y = BASE - (t + 1) * UNIT;
         return `<line x1="${X0 + 22}" x2="${X1}" y1="${y}" y2="${y}" class="grid"/><text x="${X0 + 16}" y="${y + 4}" text-anchor="end">${t + 1} h</text>`; }).join('');
+    // guest mentions per crew position on this day (same reviews as the "What guests said" section)
+    const dayReviews = genReviews(date);
+    const mentions = [0, 1, 2].map(w => dayReviews.filter(v => v.who === w));
     const avatars = [0, 1, 2].map(w => {
       const h = st.hours[w] * UNIT, top = BASE - h, cx = AX[w];
+      const ml = mentions[w], mAvg = ml.length ? ml.reduce((a, v) => a + v.rating, 0) / ml.length : 0;
+      const bubble = ml.length ? `<g class="rv-bubble"><path d="M${cx + 20},${top - 16} h34 a4 4 0 0 1 4 4 v14 a4 4 0 0 1 -4 4 h-26 l-6 6 v-6 h-2 a4 4 0 0 1 -4 -4 v-14 a4 4 0 0 1 4 -4 z" style="fill:color-mix(in srgb, ${ratingTone(mAvg)} 22%, var(--background));stroke:${ratingTone(mAvg)};stroke-width:1.5"/><text x="${cx + 39}" y="${top - 4}" text-anchor="middle" class="rv-t">★${ml.length > 1 ? ml.length : ml[0].rating}</text></g>` : '';
       const ticks = ''; // hours are read off the shared grid behind the crew
       const crown = w === topI ? `<path d="M${cx - 16},${top - 68} l5,-14 l7,9 l4,-12 l4,12 l7,-9 l5,14 z" fill="var(--crown)"/>` : '';
       const pct = Math.round(st.served[w] / Math.max(1, sales.length) * 100);
@@ -924,7 +1078,7 @@ svg text.val.sel { font-weight: 600; }
         <rect class="body" x="${cx - BW / 2}" y="${top}" width="${BW}" height="${h}" rx="18" fill="var(--muted)" fill-opacity=".72" stroke="${BCOL[w]}" stroke-width="2"/>
         ${ticks}
         ${portrait(st.crew[w], cx, top - 34, 28, BCOL[w], 'pf' + w, st.served[w] / Math.max(1, sales.length))}
-        ${crown}
+        ${crown}${bubble}
         <text x="${cx}" y="${BASE + 22}" text-anchor="middle" class="nm">${name(w)}${w === topI ? ' · leader' : ''}</text>
         <text x="${cx}" y="${BASE + 40}" text-anchor="middle">${st.hours[w]} h · ${st.served[w]} served</text>
         <g class="pct"><rect x="${w === 2 ? cx - 154 : cx + 34}" y="${top - 58}" width="120" height="26" rx="13" style="fill:${BCOL[w]}"/><text x="${w === 2 ? cx - 94 : cx + 94}" y="${top - 40.5}" text-anchor="middle" class="pct-t">${pct}% of customers</text></g>
@@ -955,7 +1109,12 @@ svg text.val.sel { font-weight: 600; }
       `<p><b>Every mug is one hour.</b> ${dayName}: ${sales.length} sales, poured in layers by what was bought.</p><div class="pics">${CATS.map((c, k) => `<span class="who pic" tabindex="0" data-set="a" data-k="${k}">${catIcon(k, c.color)}<span>${c.name}</span></span>`).join('')}</div>`,
       `<p><b>Same mugs, layered by who served.</b> One colour per barista.</p>${crewLegend}`,
       `<p><b>Poured out along each shift.</b> Each dot is one sale. Where lanes overlap, two people shared the queue.</p>`,
-      `<p><b>Meet the crew.</b> Taller means more hours. The crown goes to <b>${name(topI)}</b>, ${st.served[topI]} customers served.</p>`,
+      `<p><b>Meet the crew.</b> Taller means more hours. The crown goes to <b>${name(topI)}</b>, ${st.served[topI]} customers served.${(() => {
+        // most praised by guests (4–5★ mentions) can be someone other than the busiest
+        const praise = mentions.map(l => l.filter(v => v.rating >= 4).length), best = praise.indexOf(Math.max(...praise));
+        if (!praise[best]) return '';
+        return best === topI ? ` Guests praised ${name(best)} too.` : ` Guests praised <b>${name(best)}</b> most.`;
+      })()}</p>`,
     ];
     document.querySelectorAll('#steps .card').forEach((c, i) => c.innerHTML = steps[i]);
     resetSpot(); // captions were rebuilt for a new day: drop any locked legend selection
@@ -967,7 +1126,7 @@ svg text.val.sel { font-weight: 600; }
   dotsBox.querySelectorAll('button').forEach(b => b.onclick = () => stepsBox.scrollTo({ top: +b.dataset.go * stepsBox.clientHeight, behavior: 'smooth' }));
   let lastStep = -1;
   function syncStep() {
-    const s = Math.max(0, Math.min(stepEls.length - 1, Math.round(stepsBox.scrollTop / stepsBox.clientHeight)));
+    const s = Math.max(0, Math.min(stepEls.length - 1, Math.round(stepsBox.scrollTop / (stepsBox.clientHeight || 1)) || 0));
     stepsBox.parentElement.classList.toggle('at-end', s === stepEls.length - 1);
     if (s === lastStep) return;
     lastStep = s;

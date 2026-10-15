@@ -56,6 +56,7 @@
 }
 
 * { box-sizing: border-box; }
+[hidden] { display: none !important; }
 body { background: var(--page); color: var(--foreground); font-family: var(--font-sans); font-size: 14px; line-height: 1.45; -webkit-font-smoothing: antialiased; }
 .wrap { max-width: 1280px; margin: 0 auto; padding-inline: 24px; padding-block: 24px 48px; display: flex; flex-direction: column; gap: 16px; }
 .num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
@@ -383,7 +384,8 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
     </div>
   </section>
 
-  <section class="frame" aria-label="Behind the counter">
+  <!-- "Behind the counter" scroll story: hidden for now (its crew info moved into the hour-by-hour chart); remove `hidden` to bring it back -->
+  <section class="frame" aria-label="Behind the counter" hidden>
     <div class="frame-header"><h2 class="frame-title">Behind the counter</h2><span class="frame-desc">scroll over the chart: the day's sales rearrange into the team that served them</span></div>
     <div class="panel">
       <div class="scrolly">
@@ -673,7 +675,7 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
     const W = Math.max(320, box.clientWidth || 900);
     const L = 6, iw = W - L * 2, colW = iw / NH, roomy = colW >= 46;
     const yTop = 30, stripH = 46, yNotes = yTop + stripH + 16, noteH = 150, yBase = yNotes + noteH;
-    const yBundle = yBase + 104, yFace = yBundle + 30, H = yFace + 74;
+    const yBundle = yBase + 104, yFace = yBundle + 52, H = yFace + 74; // room between stream and face for the crown
     const xOf = (h, m) => L + (h - OPEN + m / 60) * colW;
     const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', role: 'img', class: 'daychart',
       'aria-label': `The day hour by hour: ${MEASURE_NAME[measure].toLowerCase()} per hour, every sale as a note, and who served it` });
@@ -748,7 +750,7 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
       // the stream: a solid ribbon as wide as the number of customers served, down to the face
       if (n) {
         const rw = Math.max(3, n * sp);
-        const rib = el('rect', { x: faceX[w] - rw / 2, y: yBundle, width: rw, height: yFace - yBundle - 4, rx: 2, class: 'ribbon', style: `fill:${BCOL[w]}`, 'data-w': w });
+        const rib = el('rect', { x: faceX[w] - rw / 2, y: yBundle, width: rw, height: yFace - yBundle - 26, rx: 2, class: 'ribbon', style: `fill:${BCOL[w]}`, 'data-w': w });
         flows.appendChild(rib);
       }
     });
@@ -767,15 +769,21 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
     svg.appendChild(el('line', { x1: L, x2: W - L, y1: yBase, y2: yBase, class: 'base' }));
     svg.appendChild(flows); svg.appendChild(notes);
 
-    // the crew at the end of their streams: face, name, customers served and shift
+    // the crew at the end of their streams: crown for whoever served the most, face, name, customers served and hours
+    // (what the hidden "Behind the counter" story showed in its last step)
+    const topW = st.served.indexOf(Math.max(...st.served));
     [0, 1, 2].forEach(w => {
-      const cx = faceX[w], sh = st.shifts[w];
-      const g = el('g', { class: 'crew-end', 'data-w': w, tabindex: 0, role: 'img', 'aria-label': `${STAFF[st.crew[w]]}: ${st.served[w]} served, ${pad(sh.from)}–${pad(sh.to)}` });
-      g.innerHTML = faceIcon(st.crew[w], BCOL[w], 40, `x="${cx - 20}" y="${yFace - 2}"`) +
+      const cx = faceX[w], sh = st.shifts[w], hrs = st.hours[w];
+      const ml = reviews.filter(v => v.who === w), mAvg = ml.length ? ml.reduce((a, v) => a + v.rating, 0) / ml.length : 0;
+      const g = el('g', { class: 'crew-end', 'data-w': w, tabindex: 0, role: 'img',
+        'aria-label': `${STAFF[st.crew[w]]}${w === topW ? ', served the most' : ''}: ${st.served[w]} served in ${hrs} hours${ml.length ? `, ${ml.length} guest mention${ml.length > 1 ? 's' : ''}` : ''}` });
+      const crown = w === topW ? `<path d="M${cx - 16},${yFace - 6} l5,-14 l7,9 l4,-12 l4,12 l7,-9 l5,14 z" style="fill:var(--crown)"/>` : '';
+      const bubble = ml.length ? `<path d="M${cx + 24},${yFace + 2} h30 a4 4 0 0 1 4 4 v12 a4 4 0 0 1 -4 4 h-22 l-6 6 v-6 h-2 a4 4 0 0 1 -4 -4 v-12 a4 4 0 0 1 4 -4 z" style="fill:color-mix(in srgb, ${ratingTone(mAvg)} 22%, var(--background));stroke:${ratingTone(mAvg)};stroke-width:1.5"/><text x="${cx + 41}" y="${yFace + 17}" text-anchor="middle" class="rv-t">★${ml.length > 1 ? ml.length : ml[0].rating}</text>` : '';
+      g.innerHTML = crown + bubble + faceIcon(st.crew[w], BCOL[w], 40, `x="${cx - 20}" y="${yFace - 2}"`) +
         `<text x="${cx}" y="${yFace + 54}" text-anchor="middle" class="ce-n">${STAFF[st.crew[w]]}</text>` +
-        `<text x="${cx}" y="${yFace + 70}" text-anchor="middle" class="ce-s">${st.served[w]} served${roomy ? ` · ${pad(sh.from)}–${pad(sh.to)}` : ''}</text>`;
+        `<text x="${cx}" y="${yFace + 70}" text-anchor="middle" class="ce-s">${st.served[w]} served · ${hrs} h</text>`;
       const spot = () => highlight('w', w), clear = () => highlight('w', null);
-      hover(g, () => `<b>${STAFF[st.crew[w]]}</b> · ${pad(sh.from)}:00–${pad(sh.to)}:00<br>${st.served[w]} customers served`, spot, clear);
+      hover(g, () => `<b>${STAFF[st.crew[w]]}</b>${w === topW ? ' · served the most' : ''}<br>${st.served[w]} customers in ${hrs} hours (${pad(sh.from)}:00–${pad(sh.to)}:00)${ml.length ? `<br>${ml.length} guest mention${ml.length > 1 ? 's' : ''} · ★ ${mAvg.toFixed(1)}` : ''}`, spot, clear);
       g.addEventListener('focus', spot); g.addEventListener('blur', clear);
       svg.appendChild(g);
     });

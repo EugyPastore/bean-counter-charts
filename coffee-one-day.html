@@ -114,7 +114,7 @@ body { background: var(--page); color: var(--foreground); font-family: var(--fon
 .legend-seq { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--muted-foreground); font-weight: 400; flex-wrap: wrap; }
 .legend-seq i { width: 14px; height: 8px; border-radius: 2px; display: inline-block; }
 
-.duo { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: 16px; }
+.duo { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 16px; }
 .cal { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
 .cal .dow { font-size: 11px; color: var(--muted-foreground); text-align: center; padding-bottom: 2px; }
 .day-cell { aspect-ratio: 1 / .8; max-width: 100%; padding: 5px 6px; display: flex; flex-direction: column; justify-content: space-between; }
@@ -138,8 +138,6 @@ details.tbl th { font-family: var(--font-sans); font-weight: 500; color: var(--m
 details.tbl th, details.tbl td { padding: 6px 10px 6px 0; text-align: right; border-bottom: 1px solid var(--border); }
 details.tbl th:first-child, details.tbl td:first-child { text-align: left; }
 
-.mgrid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 4px; }
-.mpanel h3 { margin: 0 0 8px; font-size: 12px; font-weight: 500; color: var(--muted-foreground); }
 
 .tip { position: fixed; pointer-events: none; z-index: 10; background: var(--tip-bg); color: var(--tip-fg); font-size: 12px; padding: 6px 10px; border-radius: 6px;
   line-height: 1.4; max-width: 230px; opacity: 0; transition: opacity .08s; box-shadow: 0 4px 12px rgba(0,0,0,.15); }
@@ -180,7 +178,6 @@ button.pill .x { color: var(--muted-foreground); font-size: 13px; line-height: 1
 .linked .bar-hit, .linked .row-hit { cursor: pointer; }
 svg text.val { font-family: var(--font-mono); font-size: 11px; font-weight: 500; fill: var(--foreground); }
 svg text.val.sel { font-weight: 600; }
-.mpanel.dim-panel { opacity: .35; }
 
 /* scroll story */
 :root { --b1: #db2777; --b2: #65a30d; --b3: #9333ea; --crown: #eab308; }
@@ -263,7 +260,7 @@ svg text.val.sel { font-weight: 600; }
 .rev-count { font-size: 13px; color: var(--muted-foreground); }
 .rev-month { font-size: 13px; color: var(--muted-foreground); }
 .rev-month b { color: var(--foreground); font-weight: 600; }
-.rev-list { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.rev-list { display: grid; grid-template-columns: minmax(0, 1fr); gap: 10px; }
 .rev-list:empty { display: none; }
 .rev-card { border: 1px solid var(--border); border-radius: calc(var(--radius) - 4px); padding: 12px 14px; display: flex; flex-direction: column; gap: 8px; min-width: 0; transition: box-shadow .3s; }
 .rev-card.low { border-color: var(--bad-bd); background: color-mix(in srgb, var(--bad-bg) 55%, var(--background)); }
@@ -274,6 +271,28 @@ svg text.val.sel { font-weight: 600; }
 .rev-meta { font-size: 12px; color: var(--muted-foreground); }
 .rev-who { display: inline-flex; align-items: center; gap: 5px; color: var(--foreground); font-weight: 500; }
 .rev-who svg { display: block; }
+/* the day, hour by hour */
+.daychart { overflow: visible; }
+.daychart .hb { cursor: pointer; }
+.daychart .hb rect { transition: opacity .15s; }
+.daychart .hb.sel rect { stroke: var(--foreground); stroke-width: 2; }
+.daychart text.hb-h { font-family: var(--font-mono); font-size: 11px; font-weight: 600; }
+.daychart text.hb-v { font-family: var(--font-mono); font-size: 12px; }
+.daychart .hb-div { stroke: var(--border); stroke-dasharray: 2 4; }
+.daychart .base { stroke: var(--border); stroke-width: 1.5; }
+.daychart .stem { stroke-width: 1.4; }
+.daychart .note-hit { stroke: transparent; stroke-width: 9; cursor: default; }
+.daychart .flow { fill: none; stroke-width: 1; opacity: .38; }
+.daychart .ribbon { opacity: .9; }
+.daychart .rush-pill rect { fill: var(--foreground); }
+.daychart .rush-pill text { font-family: var(--font-sans); font-size: 11px; font-weight: 600; fill: var(--background); }
+.daychart text.ce-n { font-family: var(--font-sans); font-size: 14px; font-weight: 600; fill: var(--foreground); }
+.daychart text.ce-s { font-family: var(--font-mono); font-size: 11px; fill: var(--muted-foreground); }
+.daychart .crew-end { cursor: default; outline: none; }
+.daychart .crew-end:focus-visible text.ce-n { text-decoration: underline; }
+.linked .flow.hov-dim, .linked .flow.dim { opacity: .05; }
+.chart-key { margin: 8px 0 0; font-size: 12px; color: var(--muted-foreground); max-width: 80ch; }
+.chart-key b { color: var(--foreground); font-weight: 600; }
 #hourly .rv-mark { cursor: pointer; outline: none; }
 #hourly .rv-mark:focus-visible path { stroke: var(--ring); stroke-width: 2; }
 svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700; fill: var(--foreground); }
@@ -289,7 +308,6 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
 @media (max-width: 960px) {
   .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .duo { grid-template-columns: minmax(0, 1fr); }
-  .mgrid { grid-template-columns: minmax(0, 1fr); }
 }
 @media (max-width: 640px) {
   .wrap { padding-inline: 16px; }
@@ -334,26 +352,22 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
       <div class="frame-header"><h2 class="frame-title" id="calTitle"></h2><span class="frame-desc" id="calNote"></span></div>
       <div class="panel"><div class="cal" id="cal" role="group" aria-label="Days"></div></div>
     </section>
-    <section class="frame">
-      <div class="frame-header"><h2 class="frame-title" id="dayTitle"></h2><span class="frame-desc" id="hourNote"></span></div>
+    <section class="frame" aria-label="What guests said">
+      <div class="frame-header"><h2 class="frame-title">What guests said</h2><span class="frame-desc" id="revNote"></span></div>
       <div class="panel">
-        <div class="cat-legend" id="catLegend" role="group" aria-label="Filter by category"></div>
-        <div id="hourly" class="linked"></div>
-        <details class="tbl"><summary>Show as table</summary><div class="scroll" id="hourTable"></div></details>
+        <div class="rev-head" id="revHead"></div>
+        <div class="rev-list" id="revList"></div>
       </div>
     </section>
   </div>
 
-  <section class="frame">
-    <div class="frame-header"><h2 class="frame-title">The day, receipt by receipt</h2><span class="frame-desc">each tick is one sale · rows are hours, across is minutes · taller = bigger ticket · click a row to pick that hour</span></div>
-    <div class="mgrid linked" id="mgrid"></div>
-  </section>
-
-  <section class="frame" aria-label="What guests said">
-    <div class="frame-header"><h2 class="frame-title">What guests said</h2><span class="frame-desc" id="revNote"></span></div>
+  <section class="frame" aria-label="The day, hour by hour">
+    <div class="frame-header"><h2 class="frame-title" id="dayTitle"></h2><span class="frame-desc" id="hourNote"></span></div>
     <div class="panel">
-      <div class="rev-head" id="revHead"></div>
-      <div class="rev-list" id="revList"></div>
+      <div class="cat-legend" id="catLegend" role="group" aria-label="Filter by category"></div>
+      <div id="hourly" class="linked"></div>
+      <p class="chart-key">Each <b>note</b> is one sale, placed at the minute it happened; a taller stem is a bigger ticket. Every stem flows into the stream of the barista who served it.</p>
+      <details class="tbl"><summary>Show as table</summary><div class="scroll" id="hourTable"></div></details>
     </div>
   </section>
 
@@ -607,9 +621,9 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
     const date = new Date(state.y, state.m, state.d);
     const rec = days.get(key(date));
     const sales = genDay(date) || [];
-    $('dayTitle').textContent = `${DOW_LONG[date.getDay()]}, ${MONTHS[state.m]} ${state.d}`;
+    $('dayTitle').textContent = `${DOW_LONG[date.getDay()]}, ${MONTHS[state.m]} ${state.d}, hour by hour`;
     $('kpiTitle').textContent = `${DOW_LONG[date.getDay()]}, ${MONTHS_LONG[state.m]} ${state.d}, ${state.y}`;
-    $('hourNote').textContent = `${MEASURE_NAME[state.measure].toLowerCase()} by hour · click a bar to pick that hour`;
+    $('hourNote').textContent = `strip = ${MEASURE_NAME[state.measure].toLowerCase()} per hour · click an hour to pick it · hover a face to follow one barista`;
     const measure = state.measure;
 
     // category filter buttons: value of each category for the day (and hour, if picked)
@@ -630,7 +644,9 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
       leg.appendChild(b);
     });
 
-    // hourly bars (category filter applies; hour filter highlights)
+    // ---------- the day, hour by hour (inspired by "What were their biggest hits?") ----------
+    // top: hour strip shaded by the chosen measure · middle: one "note" per sale at the minute it happened,
+    // stem height = ticket size · bottom: every stem flows into the stream of the barista who served it
     const cats = state.cat == null ? [0, 1, 2] : [state.cat];
     const hours = [];
     for (let h = 0; h < NH; h++) {
@@ -639,72 +655,118 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
       const parts = measure === 'rev' ? r : measure === 'n' ? n : [N ? R / N : 0];
       hours.push({ h: OPEN + h, parts, total: parts.reduce((a, b) => a + b, 0), R, N });
     }
-    const box = $('hourly'); box.innerHTML = '';
     const reviews = genReviews(date);
-    const W = Math.max(280, box.clientWidth || 600), H = 272, m = { t: 22, r: 4, b: 44, l: 44 };
-    const iw = W - m.l - m.r, ih = H - m.t - m.b;
-    const maxV = Math.max(...hours.map(x => x.total), measure === 'avg' ? 1 : 1);
-    const nice = [1, 2, 2.5, 5, 10, 20, 25, 50, 100, 200, 250, 500, 1000];
-    const step = nice.find(s => maxV / s <= 5) || 1000;
-    const top = Math.ceil(maxV / step) * step;
-    const yS = v => m.t + ih - v / top * ih;
-    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', role: 'img', 'aria-label': `${MEASURE_NAME[measure]} by hour` });
-    for (let v = 0; v <= top + 1e-9; v += step) {
-      svg.appendChild(el('line', { x1: m.l, x2: W - m.r, y1: yS(v), y2: yS(v), stroke: 'var(--border)', 'stroke-width': 1, 'stroke-dasharray': v ? '3 3' : '' }));
-      const t = el('text', { x: m.l - 6, y: yS(v) + 3, 'text-anchor': 'end' });
-      t.textContent = measure === 'n' ? v : '€' + (measure === 'avg' && step < 1 ? v.toFixed(1) : v); svg.appendChild(t);
-    }
-    const bw = iw / NH, barW = Math.min(32, bw * 0.66);
+    const raw = genDay(date, true) || [], st = staffDay(date, raw);
+    const box = $('hourly'); box.innerHTML = '';
+    const W = Math.max(320, box.clientWidth || 900);
+    const L = 6, iw = W - L * 2, colW = iw / NH, roomy = colW >= 46;
+    const yTop = 30, stripH = 46, yNotes = yTop + stripH + 16, noteH = 150, yBase = yNotes + noteH;
+    const yBundle = yBase + 104, yFace = yBundle + 30, H = yFace + 74;
+    const xOf = (h, m) => L + (h - OPEN + m / 60) * colW;
+    const svg = el('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', role: 'img', class: 'daychart',
+      'aria-label': `The day hour by hour: ${MEASURE_NAME[measure].toLowerCase()} per hour, every sale as a note, and who served it` });
+
+    // hour strip: shaded on the same blue scale as the calendar, value inside each block
+    const maxT = Math.max(...hours.map(x => x.total), 1e-9);
     const peak = hours.reduce((a, b) => b.total > a.total ? b : a, hours[0]);
     hours.forEach((hr, i) => {
-      const g = el('g', { 'data-h': hr.h });
+      const x = L + i * colW, s = hr.total > 0 ? 1 + Math.min(4, Math.floor(hr.total / maxT * 5)) : 0;
+      const g = el('g', { 'data-h': hr.h, class: 'hb' + (state.hour === hr.h ? ' sel' : '') });
       if (state.hour != null && state.hour !== hr.h) g.classList.add('dim');
-      const x = m.l + i * bw + (bw - barW) / 2;
-      let acc = 0;
-      hr.parts.forEach((v, j) => {
-        if (v <= 0) return;
-        const c = measure === 'avg' ? (state.cat != null ? state.cat : null) : cats[j];
-        const below = acc, y0 = yS(acc), y1 = yS(acc + v); acc += v;
-        const segH = Math.max(0, y0 - y1 - (below > 0 ? 2 : 0)); // 2px surface gap
-        const isTop = Math.abs(acc - hr.total) < 1e-9;
-        const r = isTop ? Math.min(4, segH / 2, barW / 2) : 0;
-        const d = isTop
-          ? `M${x},${y1 + segH} V${y1 + r} Q${x},${y1} ${x + r},${y1} H${x + barW - r} Q${x + barW},${y1} ${x + barW},${y1 + r} V${y1 + segH} Z`
-          : `M${x},${y1} h${barW} v${segH} h${-barW} Z`;
-        const p = el('path', { d, fill: c != null ? CATS[c].color : 'var(--seq-4)' });
-        if (c != null && measure !== 'avg') p.setAttribute('data-c', c);
-        g.appendChild(p);
-      });
-      // direct label on the peak bar and on the picked hour
-      if ((hr === peak && state.hour == null) || hr.h === state.hour) {
-        const t = el('text', { x: x + barW / 2, y: yS(hr.total) - 6, 'text-anchor': 'middle', class: 'val' + (hr.h === state.hour ? ' sel' : '') });
-        t.textContent = fmt(hr.total, true); g.appendChild(t);
-      }
-      const lab = el('text', { x: m.l + i * bw + bw / 2, y: H - 28, 'text-anchor': 'middle' }); lab.textContent = pad(hr.h); g.appendChild(lab);
-      svg.appendChild(g);
-      const hit = el('rect', { x: m.l + i * bw, y: m.t - 18, width: bw, height: ih + 18, fill: 'transparent', class: 'bar-hit' });
-      hit.addEventListener('click', () => { state.hour = state.hour === hr.h ? null : hr.h; render(); });
-      hover(hit, () => `<b>${hourLabel(hr.h)}</b>${state.cat != null ? ' · ' + CATS[state.cat].name : ''}<br>` +
+      g.appendChild(el('rect', { x: x + 1, y: yTop, width: colW - 2, height: stripH, rx: 6, style: `fill:${s ? `var(--seq-${s})` : 'var(--empty)'}` }));
+      const ink = s ? `var(--seq-ink-${s})` : 'var(--empty-ink)';
+      const th = el('text', { x: x + 8, y: yTop + 17, class: 'hb-h', style: `fill:${ink}` }); th.textContent = pad(hr.h); g.appendChild(th);
+      if (roomy) { const tv = el('text', { x: x + 8, y: yTop + 36, class: 'hb-v', style: `fill:${ink}` }); tv.textContent = fmt(hr.total, true); g.appendChild(tv); }
+      // faint hour divider through the notes
+      if (i) svg.appendChild(el('line', { x1: x, x2: x, y1: yNotes - 4, y2: yBase, class: 'hb-div' }));
+      g.addEventListener('click', () => { state.hour = state.hour === hr.h ? null : hr.h; render(); });
+      hover(g, () => `<b>${hourLabel(hr.h)}</b>${state.cat != null ? ' · ' + CATS[state.cat].name : ''}<br>` +
         (measure === 'avg' ? '' : cats.map((c, k) => `<span style="color:${CATS[c].color}">■</span> ${CATS[c].name} ${fmt(hr.parts[k])}`).join('<br>') + '<br>') +
         `${money(hr.R)} · ${hr.N} sales${hr.N ? ' · €' + (hr.R / hr.N).toFixed(2) + ' avg' : ''}<br><span style="opacity:.7">Click to ${state.hour === hr.h ? 'clear' : 'pick'} this hour</span>`,
         () => highlight('h', hr.h), () => highlight('h', null));
-      svg.appendChild(hit);
+      svg.appendChild(g);
     });
-    // guest reviews: one speech bubble under each hour that got a review (hover = the words, click = jump to it)
+    // above the strip: the Rush pill on the busiest hour (left of its block), review bubbles (right of their block)
+    if (peak.total > 0 && roomy) { // narrow screens: the darkest block already marks the rush
+      const px = L + (peak.h - OPEN) * colW + 3;
+      const rg = el('g', { class: 'rush-pill' });
+      rg.appendChild(el('rect', { x: px, y: 4, width: 42, height: 20, rx: 10 }));
+      const rt = el('text', { x: px + 21, y: 18, 'text-anchor': 'middle' }); rt.textContent = 'Rush'; rg.appendChild(rt);
+      svg.appendChild(rg);
+    }
     const byHour = {};
     reviews.forEach((v, i) => (byHour[v.h] = byHour[v.h] || []).push(i));
     Object.entries(byHour).forEach(([h, ids]) => {
       const list = ids.map(i => reviews[i]), avg = list.reduce((a, v) => a + v.rating, 0) / list.length;
-      const cx = m.l + (h - OPEN) * bw + bw / 2, cy = H - 11;
+      const cx = roomy ? L + (h - OPEN + 1) * colW - 19 : L + (h - OPEN + 0.5) * colW, cy = 14;
       const b = el('g', { class: 'rv-mark', tabindex: 0, role: 'button', 'aria-label': `${list.length} review${list.length > 1 ? 's' : ''} at ${pad(+h)}:00` });
-      b.appendChild(el('path', { d: `M${cx - 13},${cy - 8} h26 a3 3 0 0 1 3 3 v10 a3 3 0 0 1 -3 3 h-9 l-4 4 l-4 -4 h-9 a3 3 0 0 1 -3 -3 v-10 a3 3 0 0 1 3 -3 z`, style: `fill:color-mix(in srgb, ${ratingTone(avg)} 22%, var(--background));stroke:${ratingTone(avg)};stroke-width:1.5` }));
-      const t = el('text', { x: cx, y: cy + 4, 'text-anchor': 'middle', class: 'rv-t' });
-      t.textContent = list.length > 1 ? `★${list.length}` : `★${list[0].rating}`; b.appendChild(t);
+      if (!roomy) { // compact badge on narrow screens
+        b.appendChild(el('circle', { cx, cy, r: 8, style: `fill:color-mix(in srgb, ${ratingTone(avg)} 22%, var(--background));stroke:${ratingTone(avg)};stroke-width:1.5` }));
+        const tc = el('text', { x: cx, y: cy + 3.5, 'text-anchor': 'middle', class: 'rv-t' }); tc.textContent = '★'; b.appendChild(tc);
+      } else b.appendChild(el('path', { d: `M${cx - 13},${cy - 9} h26 a3 3 0 0 1 3 3 v10 a3 3 0 0 1 -3 3 h-9 l-4 4 l-4 -4 h-9 a3 3 0 0 1 -3 -3 v-10 a3 3 0 0 1 3 -3 z`, style: `fill:color-mix(in srgb, ${ratingTone(avg)} 22%, var(--background));stroke:${ratingTone(avg)};stroke-width:1.5` }));
+      if (roomy) { const t = el('text', { x: cx, y: cy + 3, 'text-anchor': 'middle', class: 'rv-t' });
+        t.textContent = list.length > 1 ? `★${list.length}` : `★${list[0].rating}`; b.appendChild(t); }
       hover(b, () => list.map(v => `${stars(v.rating, 11)}<br>“${v.text}”<br><span style="opacity:.7">${v.reviewer} · ${v.source} · ${pad(v.h)}:${pad(v.m)}</span>`).join('<hr style="border:0;border-top:1px solid currentColor;opacity:.2;margin:6px 0">'));
       const go = () => { const c = document.getElementById(`rev-${ids[0]}`); if (c) { c.scrollIntoView({ behavior: 'smooth', block: 'center' }); c.classList.add('flash'); setTimeout(() => c.classList.remove('flash'), 1200); } };
       b.addEventListener('click', go);
       b.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); go(); } });
       svg.appendChild(b);
+    });
+
+    // notes + flows: place every sale, then route each stem to its barista's stream in left→right order
+    const maxAmt = Math.max(...raw.map(s => s.amt), 1);
+    const faceX = [0, 1, 2].map(w => L + iw * (w * 2 + 1) / 6);
+    const seenMin = {};
+    const placed = raw.map((s, i) => {
+      const j = (seenMin[s.h * 60 + s.m] = (seenMin[s.h * 60 + s.m] || 0) + 1) - 1;
+      return { s, i, w: st.who[i], x: xOf(s.h, s.m) + j * 2.2, top: yBase - (8 + s.amt / maxAmt * (noteH - 16)) };
+    });
+    const dimSale = s => (state.cat != null && s.cat !== state.cat) || (state.hour != null && s.h !== state.hour);
+    const flows = el('g', { class: 'flows' }), notes = el('g', { class: 'notes' });
+    [0, 1, 2].forEach(w => {
+      const mine = placed.filter(p => p.w === w).sort((a, b) => a.x - b.x), n = mine.length;
+      const sp = n ? Math.min(1.8, 70 / n) : 0;
+      mine.forEach((p, k) => {
+        const bx = faceX[w] + (k - (n - 1) / 2) * sp;
+        const f = el('path', { d: `M${p.x},${yBase} C${p.x},${yBase + 58} ${bx},${yBundle - 52} ${bx},${yBundle}`, class: 'flow',
+          style: `stroke:${BCOL[w]}`, 'data-w': w, 'data-h': p.s.h, 'data-c': p.s.cat });
+        if (dimSale(p.s)) f.classList.add('dim');
+        flows.appendChild(f);
+      });
+      // the stream: a solid ribbon as wide as the number of customers served, down to the face
+      if (n) {
+        const rw = Math.max(3, n * sp);
+        const rib = el('rect', { x: faceX[w] - rw / 2, y: yBundle, width: rw, height: yFace - yBundle - 4, rx: 2, class: 'ribbon', style: `fill:${BCOL[w]}`, 'data-w': w });
+        flows.appendChild(rib);
+      }
+    });
+    placed.forEach(p => {
+      const g = el('g', { class: 'note', 'data-h': p.s.h, 'data-c': p.s.cat, 'data-w': p.w });
+      if (dimSale(p.s)) g.classList.add('dim');
+      g.appendChild(el('line', { x1: p.x, x2: p.x, y1: yBase, y2: p.top, style: `stroke:${CATS[p.s.cat].color}`, class: 'stem' }));
+      g.appendChild(el('circle', { cx: p.x, cy: p.top, r: 3.4, style: `fill:${CATS[p.s.cat].color}` }));
+      g.appendChild(el('line', { x1: p.x, x2: p.x, y1: yBase, y2: p.top - 5, class: 'note-hit' }));
+      hover(g, () => `<b>${pad(p.s.h)}:${pad(p.s.m)}</b> · <span style="color:${CATS[p.s.cat].color}">■</span> ${CATS[p.s.cat].name} · €${p.s.amt.toFixed(2)}<br>served by ${STAFF[st.crew[p.w]]}`);
+      notes.appendChild(g);
+    });
+    svg.appendChild(el('line', { x1: L, x2: W - L, y1: yBase, y2: yBase, class: 'base' }));
+    svg.appendChild(flows); svg.appendChild(notes);
+
+    // the crew at the end of their streams: face, name, customers served and shift
+    [0, 1, 2].forEach(w => {
+      const cx = faceX[w], sh = st.shifts[w];
+      const g = el('g', { class: 'crew-end', 'data-w': w, tabindex: 0, role: 'img', 'aria-label': `${STAFF[st.crew[w]]}: ${st.served[w]} served, ${pad(sh.from)}–${pad(sh.to)}` });
+      g.innerHTML = faceIcon(st.crew[w], BCOL[w], 40, `x="${cx - 20}" y="${yFace - 2}"`) +
+        `<text x="${cx}" y="${yFace + 54}" text-anchor="middle" class="ce-n">${STAFF[st.crew[w]]}</text>` +
+        `<text x="${cx}" y="${yFace + 70}" text-anchor="middle" class="ce-s">${st.served[w]} served${roomy ? ` · ${pad(sh.from)}–${pad(sh.to)}` : ''}</text>`;
+      const spot = () => highlight('w', w), clear = () => highlight('w', null);
+      hover(g, () => `<b>${STAFF[st.crew[w]]}</b> · ${pad(sh.from)}:00–${pad(sh.to)}:00<br>${st.served[w]} customers served`, spot, clear);
+      g.addEventListener('focus', spot); g.addEventListener('blur', clear);
+      svg.appendChild(g);
+    });
+    flows.querySelectorAll('.ribbon').forEach(rb => {
+      const w = +rb.dataset.w;
+      hover(rb, () => `<b>${STAFF[st.crew[w]]}</b><br>${st.served[w]} customers served`, () => highlight('w', w), () => highlight('w', null));
     });
     box.appendChild(svg);
     renderReviews(date, reviews);
@@ -714,48 +776,6 @@ svg text.rv-t { font-family: var(--font-sans); font-size: 10px; font-weight: 700
         const r = [0, 1, 2].map(c => rec.rev[h * 3 + c]), R = r[0] + r[1] + r[2], N = rec.n[h * 3] + rec.n[h * 3 + 1] + rec.n[h * 3 + 2];
         return `<tr><td>${pad(OPEN + h)}:00</td>${r.map(v => `<td>${money(v)}</td>`).join('')}<td>${money(R)}</td><td>${N}</td><td>${N ? '€' + (R / N).toFixed(2) : '–'}</td></tr>`;
       }).join('') + '</tbody></table>';
-
-    // receipt timeline: three 4-hour panels; filters dim what doesn't match
-    const g = $('mgrid'); g.innerHTML = '';
-    [[7, 11], [11, 15], [15, 19]].forEach(([a, b]) => {
-      const p = document.createElement('div'); p.className = 'panel mpanel';
-      if (state.hour != null && (state.hour < a || state.hour >= b)) p.classList.add('dim-panel');
-      const inPanel = sales.filter(x => x.h >= a && x.h < b && (state.cat == null || x.cat === state.cat));
-      const R = inPanel.reduce((s, x) => s + x.amt, 0);
-      p.innerHTML = `<h3>${pad(a)}:00 – ${pad(b)}:00 · <span class="num">${inPanel.length}</span> sales · <span class="num">${money(R)}</span></h3>`;
-      const PW = 400, rowH = 34, PH = rowH * (b - a) + 20, l = 26;
-      const s = el('svg', { viewBox: `0 0 ${PW} ${PH}`, width: '100%', role: 'img', 'aria-label': `Sales between ${a}:00 and ${b}:00` });
-      [0, 15, 30, 45].forEach(mm => {
-        const x = l + mm / 60 * (PW - l);
-        s.appendChild(el('line', { x1: x, x2: x, y1: 0, y2: PH - 16, stroke: 'var(--border)', 'stroke-dasharray': '2 3' }));
-        const t = el('text', { x: x + 2, y: PH - 4 }); t.textContent = ':' + pad(mm); s.appendChild(t);
-      });
-      for (let h = a; h < b; h++) {
-        const y = (h - a) * rowH + 4;
-        const row = el('g', { 'data-h': h });
-        if (state.hour != null && state.hour !== h) row.classList.add('dim');
-        row.appendChild(el('line', { x1: l, x2: PW, y1: y + rowH - 6, y2: y + rowH - 6, stroke: 'var(--border)' }));
-        const t = el('text', { x: 0, y: y + rowH / 2 + 2 }); t.textContent = pad(h); row.appendChild(t);
-        const seen = {};
-        sales.filter(x => x.h === h).forEach(x => {
-          const j = (seen[x.m] = (seen[x.m] || 0) + 1) - 1;
-          const tx = l + (x.m + Math.min(j * 0.3, 0.9)) / 60 * (PW - l);
-          const hgt = 8 + Math.min(16, x.amt * 0.8);
-          const tick = el('rect', { x: tx, y: y + rowH - 6 - hgt, width: 3, height: hgt, rx: 1, fill: CATS[x.cat].color, 'data-c': x.cat });
-          if (state.cat != null && state.cat !== x.cat) tick.classList.add('dim');
-          row.appendChild(tick);
-        });
-        s.appendChild(row);
-        const rowSales = sales.filter(x => x.h === h && (state.cat == null || x.cat === state.cat));
-        const hit = el('rect', { x: 0, y, width: PW, height: rowH - 2, fill: 'transparent', class: 'row-hit' });
-        hit.addEventListener('click', () => { state.hour = state.hour === h ? null : h; render(); });
-        hover(hit, e => {
-          return `<b>${hourLabel(h)}</b>${state.cat != null ? ' · ' + CATS[state.cat].name : ''}<br>${rowSales.length} sales · ${money(rowSales.reduce((s2, x) => s2 + x.amt, 0))}<br><span style="opacity:.7">Click to ${state.hour === h ? 'clear' : 'pick'} this hour</span>`;
-        }, () => highlight('h', h), () => highlight('h', null));
-        s.appendChild(hit);
-      }
-      p.appendChild(s); g.appendChild(p);
-    });
 
     // KPI cards: same filters; badges vs the same weekday over the previous 8 weeks
     const cur = sumDay(rec);
